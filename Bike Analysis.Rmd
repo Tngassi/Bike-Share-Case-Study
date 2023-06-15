@@ -1,0 +1,219 @@
+---
+title: "Analysis"
+author: "Tony Ngassi"
+date: "2022-11-29"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+
+```
+
+## Importing the data files
+```{r}
+m11_2021 <- read.csv("Data/202111-divvy-tripdata.csv")
+m12_2021 <- read.csv("Data/202112-divvy-tripdata.csv")
+m1_2022 <- read.csv("Data/202201-divvy-tripdata.csv")
+m2_2022 <- read.csv("data/202202-divvy-tripdata.csv")
+m3_2022 <- read.csv("Data/202203-divvy-tripdata.csv")
+m4_2022 <- read.csv("Data/202204-divvy-tripdata.csv")
+m5_2022 <- read.csv("data/202205-divvy-tripdata.csv")
+m6_2022 <- read.csv("Data/202206-divvy-tripdata.csv")
+m7_2022 <- read.csv("Data/202207-divvy-tripdata.csv")
+m8_2022 <- read.csv("Data/202208-divvy-tripdata.csv")
+m9_2022 <- read.csv("Data/202209-divvy-tripdata.csv")
+m10_2022 <- read.csv("Data/202210-divvy-tripdata.csv")
+```
+
+# Checking the individual datasets
+```{r include=FALSE}
+str(m11_2021)
+str(m12_2021)
+str(m1_2022)
+str(m2_2022)
+str(m3_2022)
+str(m4_2022)
+str(m5_2022)
+str(m6_2022)
+str(m7_2022)
+str(m8_2022)
+str(m9_2022)
+str(m10_2022)
+```
+
+# Combine all the datasets into one
+```{r}
+all_bike_trips <- bind_rows(m11_2021, m12_2021, m1_2022, m2_2022, m3_2022, m4_2022, m5_2022, m6_2022,
+                            m7_2022, m8_2022, m9_2022, m10_2022)
+str(all_bike_trips)
+```
+
+
+# The columns of start and end station id are not the same datatype, so I'll need to fix this. these fields are also characters rather than integers.
+
+```{r}
+options(warn=-1)
+all_bike_trips <- mutate(all_bike_trips, start_station_id = as.integer(start_station_id))
+all_bike_trips <- mutate(all_bike_trips, end_station_id = as.integer(end_station_id))
+str(all_bike_trips)
+```
+# Formating and adding data
+```{r}
+all_bike_trips$date <- as.Date(all_bike_trips$started_at)
+all_bike_trips$month <- format(as.Date(all_bike_trips$date), "%m")
+all_bike_trips$day <- format(as.Date(all_bike_trips$date), "%d")
+all_bike_trips$year <- format(as.Date(all_bike_trips$date), "%Y")
+all_bike_trips$day_of_week <- format(as.Date(all_bike_trips$date), "%A")
+
+
+
+head(all_bike_trips)
+```
+## Removing start/end station id/names columns
+```{r}
+all_bike_trips <- all_bike_trips %>% select(-c(start_station_name, end_station_name, start_station_id, end_station_id))
+
+head(all_bike_trips)
+```
+
+
+## Removing duplicates and NA's
+```{r}
+all_bike_trips <- all_bike_trips[!duplicated(all_bike_trips$ride_id), ]
+all_bike_trips <- drop_na(all_bike_trips)
+
+nrow(all_bike_trips)
+head(all_bike_trips)
+```
+## Make a column for ride length
+```{r}
+all_bike_trips <- mutate(all_bike_trips, ride_length = difftime(ended_at, started_at, units = "mins"))
+str(all_bike_trips)
+```
+# Counting the amount of member vs casual riders
+```{r}
+rider_type_total <- table(all_bike_trips$member_casual)
+View(rider_type_total)
+```
+
+# Analysis
+```{r}
+trip_stats <- all_bike_trips %>%
+  group_by(member_casual) %>%
+  summarise(average_ride_length = mean(ride_length), standard_deviation = sd(ride_length), median_ride_length = median(ride_length), min_ride_length = min(ride_length), max_ride_length = max(ride_length))
+head(trip_stats)
+```
+# Finding the mode of the day of the week
+```{r}
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+weekday_mode <- getmode(all_bike_trips$day_of_week)
+print(weekday_mode)
+```
+# Finding the most popular day by member or casual rider
+```{r}
+all_bike_trips$day_of_week <- ordered(all_bike_trips$day_of_week, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+
+all_bike_trips %>%
+  group_by(member_casual, day_of_week) %>%
+  summarise(rider_type_total = n(), average_ride_length = mean(ride_length)) %>%
+  arrange(member_casual, day_of_week)
+```
+# Finding the most popular months from November 2021 to October 2022
+```{r}
+popular_month <- all_bike_trips %>%
+  group_by(month) %>%
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>%
+  arrange(-number_of_rides)
+
+view(popular_month)
+```
+
+
+## Visualization of the rider types
+```{r}
+all_bike_trips %>% 
+  group_by(member_casual) %>%
+  summarise(total_rider_type = n()) %>%
+  ggplot(aes(x = member_casual, y=total_rider_type, fill=member_casual)) + geom_col(position = "dodge") +  geom_text(aes(label = total_rider_type, vjust = -0.25)) + labs(x = "Rider Type", y = "Total Riders", title = "Total Rider Type", fill = "Member/Casual")
+```
+
+# Visualization for rider type and ride duration
+```{r}
+rider_type_average_duration <- all_bike_trips %>% 
+  group_by(member_casual) %>% 
+  summarize(average_ride_length = mean(ride_length))
+
+rider_type_average_duration %>% 
+  ggplot(aes(x = member_casual, y = average_ride_length, fill = member_casual)) + 
+  geom_col(position = "dodge") + geom_text(aes(label = average_ride_length, vjust =-0.25)) + labs(x = "Rider Type", y = "Average Duration (min)",
+       title = "Average Riding Duration by Rider Type", fill = "Member/Casual")
+```
+# Visualization for the average ride duration between casual and member rider by day of the week
+```{r}
+all_bike_trips %>%
+  group_by(member_casual, day_of_week) %>% 
+  summarise(number_of_rides = n(),average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, day_of_week)  %>%
+
+  ggplot(aes(x = day_of_week, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge") + 
+  labs(x = "Day of Week", y = "Average Duration (min)", 
+      fill = "Member/Casual",
+      title = "Average Riding Duration by Day: Members vs. Casual Riders")
+```
+# Visualization of number of rides by week for casual and member riders
+```{r}
+all_bike_trips %>% 
+  mutate(day_of_week = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, day_of_week) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, day_of_week)  %>% 
+  ggplot(aes(x = day_of_week, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge") + labs(x= "Weekday", y= "Number of Rides", title="Number of Rides by Casual and Members and day of the week", fill = "Member/Casual")
+```
+
+
+# Visualization of rides between casual and member rider by week
+
+```{r}
+ all_bike_trips %>%  
+  group_by(member_casual,rideable_type,day_of_week) %>%
+  summarise(totals=n(), .groups="drop") %>%
+  ggplot+
+  geom_col(mapping=aes(x=day_of_week,y =totals ,fill=rideable_type)) +
+  facet_wrap(~member_casual) +
+  labs(title = "Bike type usage by user type during a week ",x="bike type",y=NULL, fill = "rideable type")
+
+```
+
+
+## Findings Summary
+
+- How do annual members and casual riders use Cyclistic bikes differently?
+  ** Casual members on average use the bikes for longer durations than members do 
+  and also do so throughout the week. 
+  ** In casual riders, Saturday and Sunday are the most active presumably because casual riders ride more for leisure. Could be because of tourists sightseeing the area. 
+  ** Between November 2021 and October 2022, Cyclistic saw more member riders than casual riders.
+  ** Between casual and member riders, only the casual members use the docked bikes. 
+  
+
+
+## Recommendations
+** Inform casual riders of the perks of memberships.
+** Introduce discount for longer rides if you have a membership.
+** Longer ride could be part of a rewards system. Such as after a certain number of miles, the next ride is free or discounted. This could encourage members to go on longer rides.
+** Since casual riders are most active on the weekends, a weekend only deal could help attract more casual riders. Alternatively, weekend only deals for members could attract casual riders to signup for a membership.
+** Another idea could be introducing a "Bike more and pay less" to encourage longer bike rides for members.
