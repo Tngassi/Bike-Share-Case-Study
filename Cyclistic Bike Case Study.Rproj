@@ -1,0 +1,48 @@
+---
+title: "Bike Share Case Study Analysis"
+author: "Tony Ngassi"
+date: "2022-11-28"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(ggplot2)
+```
+
+# R Markdown
+
+
+
+```{r Bike Trips}
+m11_2021 <- read.csv("Working CSVs/2021-11-divvy-tripdata.csv")
+m12_2021 <- read.csv("Working CSVs/2021-12-divvy-tripdata.csv")
+m1_2022 <- read.csv("Working CSVs/2022-01-divvy-tripdata.csv")
+m2_2022 <- read.csv("Working CSVs/2022-02-divvy-tripdata.csv")
+m3_2022 <- read.csv("Working CSVs/2022-03-divvy-tripdata.csv")
+m4_2022 <- read.csv("Working CSVs/2022-04-divvy-tripdata.csv")
+m5_2022 <- read.csv("Working CSVs/2022-05-divvy-tripdata.csv")
+m6_2022 <- read.csv("Working CSVs/2022-06-divvy-tripdata.csv")
+m7_2022 <- read.csv("Working CSVs/2022-07-divvy-tripdata.csv")
+m8_2022 <- read.csv("Working CSVs/2022-08-divvy-tripdata.csv")
+m9_2022 <- read.csv("Working CSVs/2022-09-divvy-tripdata.csv")
+m10_2022 <- read.csv("Working CSVs/2022-10-divvy-tripdata.csv")
+
+all_bike_trips <- bind_rows(m11_2021, m12_2021, m1_2022, m2_2022, m3_2022, m4_2022, m5_2022, m6_2022,
+                            m7_2022, m8_2022, m9_2022, m10_2022)
+
+```{r}
+
+```
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
